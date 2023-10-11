@@ -1,0 +1,5 @@
+PWD c:/Users/Jack/OneDrive/2022-2023/研究/sustech-thesis-v1.3.19
+INPUT d:/Softwares/texlive/2023/texmf.cnf
+INPUT d:/Softwares/texlive/2023/texmf-dist/web2c/texmf.cnf
+INPUT d:/Softwares/texlive/2023/texmf-var/web2c/xetex/xelatex.fmt
+OUTPUT texput.log
