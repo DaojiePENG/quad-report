@@ -1,10 +1,25 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter{English and $\text{lower-case}$ Example}
+\chapter[强化学习部署实践和关键点]{强化学习部署实践和关键点}
+\begin{note}
+  两个参考的RL深度学习案例库：
 
-If your supervisor is a foreign resident, or if your supervisor or defense committee specifically allows writing in English, the thesis may be written in English as the primary language. Please check with your supervisor or department secretary to confirm if you can write in English.
+  \emph{\href{https://github.com/DaojiePENG}{isaacgym库}}
 
-\section{Reference guide}
+  \emph{\href{https://github.com/DaojiePENG}{legged\_gym库}}
+\end{note}
 
-Writing in English still requires the Chinese reference standard GB/T 7714-2015.
+\section[强化学习平台Isaac]{关于强化学习平台Isaac\cite[p6-10]{Makoviychuk_Wawrzyniak_Guo_Lu_Storey_Macklin_Hoeller_Rudin_Allshire_Handa_et_al_2021}}
 
+\textcolor{red}{\small
+这部分参考文献介绍对Isaac平台的基本理解，主要是它的并行工作流程和提供的读取和设置API...}
+
+\section[强化学习案例legged\_gym库]{强化学习案例legged\_gym库\cite[p1]{Rudin_Hoeller_Reist_Hutter_2021}}
+
+\textcolor{red}{\small
+这部分展示legge\_gym库关于ANYmal-c的训练代码，主要关注整个训练流程、奖励函数的设计、对Isaac-API的使用、地形设计、训练课程设计等与论文中提到的概念对应...}
+
+\section[PyTorch的使用]{PyTorch的使用}
+\textcolor{red}{\small
+这部分结合Pytorch的官方文档和legge\_gym库提取其中关于\emph{.pth}模型的构建和使用流程和实例...
+}

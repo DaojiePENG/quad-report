@@ -1,37 +1,562 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter{基于经典方式的机械狗控制}
+\chapter[基于质心动力学(Centroidal Dynamics)模型的TO控制]{基于质心动力学(Centroidal Dynamics)模型的TO控制}
 
 足式机器人的运动规划是比较困难的，不仅因为它的自由度较多，更因为它的机体运动不能被直接得出，而是要通过四肢状态及四肢与环境的接触产生。
 
-经典控制的基础是对机器人的运动学和动力学建模。经典控制主要方式有\emph{轨迹优化(Trajectory Optimization, TO)}和\emph{模型预测控制(Model Predictive Control, MPC)}两类。常用的\emph{轨迹优化}机械狗动力模型有：\emph{1. 基于有线性倒立摆的模型；2. 基于直接刚体动力学的模型；3. 基于质心动力学的模型}。基于这些模型的优化控制都被描述为\emph{非线性优化问题}，这些问题的求解算力开销较大往往不能够在线完成，需要上位机的辅助。
-\textcolor{red}{\small
-对于MPC还不太熟悉，等看完了补充下MPC描述...
+经典控制的基础是对机器人的运动学和动力学建模。经典控制主要方式有\emph{轨迹优化(Trajectory Optimization, TO)}和\emph{模型预测控制(Model Predictive Control, MPC)}两类。常用的\emph{轨迹优化}机械狗动力模型有两种\cite[p2]{Winkler_Bellicoso_Hutter_Buchli_2018}：\emph{1. 基于质心动力学的模型；2. 基于直接刚体动力学的模型}。基于这些模型的优化控制都被描述为\emph{非线性优化问题}，这些问题的求解算力开销较大往往不能够在线完成，需要上位机的辅助。
+
+
+% \section[基于质心动力学模型(Centroidal Dynamics)的TO控制]{基于质心动力学模型(Central Dynamics)的TO控制\cite[p2-5]{Bellicoso_Jenelten_Fankhauser_Gehring_Hwangbo_Hutter_2017}}
+% \textcolor{red}{\small
+% 基于参考文献阐述基于ZMP方法，质心动力学模型的控制方法...
+% }
+
+
+
+\section[机械狗的运动模型(Motion Model)]{\label{section:motion_model}机械狗的运动模型(Motion Model)\cite[p2]{Bellicoso_Jenelten_Fankhauser_Gehring_Hwangbo_Hutter_2017, Bellicoso_Jenelten_Gehring_Hutter_2018}}
+
+机器人与环境接触的机械系统的运动模型描述方程可以描述如下：
+
+\begin{align}
+    {\mathbfit M}({\mathbfit q})\dot{\mathbfit u} + {\mathbfit h}({\mathbfit q}, {\mathbfit u}) =  {\mathbfit S}^T{\mathbfit \tau} + {\mathbfit J}_S^T {\mathbfit \lambda}
+\end{align}
+这其中${\mathbfit q}$是一个描述机器人主体及各个节点的广义位置矢量：
+\begin{align}
+    {\mathbfit q}= \begin{bmatrix}_I {\mathbfit r}_{IB} \\ {\mathbfit q}_{IB} \\ {\mathbfit q}_j\end{bmatrix} \in SE(3)\times {\mathbb R}^{n_j}
+\end{align}
+
+它里面$_I {\mathbfit r}_{IB} \in {\mathbb R}^{3}$是机器人主体相对于惯性系的三维位置矢量；${\mathbfit q}_{IB} \in SO(3)$是机器人主体相对于惯性系的转动描述，用哈密顿单位四元数表示的；${\mathbfit q}_j \in {\mathbb R}^{n_j}$是一个储存机器人所有节点角度的$n_j$维矢量。
+
+
+这其中${\mathbfit u}$是一个描述机器人主体及各个节点的广义速度矢量：
+\begin{align}
+    {\mathbfit u}= \begin{bmatrix}_I{\mathbfit v}_B \\ _B{\mathbfit \omega}_{IB} \\ \dot {\mathbfit q}_j \end{bmatrix} \in {\mathbb R}^{n_u} 
+\end{align}
+
+它里面的$_I{\mathbfit v}_B$描述了机器人主体相对于惯性系的速度；$_B{\mathbfit \omega}_{IB}$描述了机器人主体相对于自身的角速度；$\dot {\mathbfit q}_j$描述了机器人的各个关节转动的速度。
+这其中${\mathbfit M}$是一个关于机器人整体的质量矩阵，它是一个$n_u \times n_u$的矩阵： 
+\begin{align}
+    {\mathbfit M} \in {\mathbb R}^{n_u \times n_u}
+\end{align}
+
+这个质量矩阵的具体数值跟机器人的机械系统的状态（各个节点的位置${\mathbfit q}$）相关，可以通过通用的方式计算出它的表达式。实际计算的时候只需要带入${\mathbfit q}$的值，就可以计算出${\mathbfit M}$矩阵的各个元素具体数值。
+这其中${\mathbfit h}$是一个跟机器人的机械位置和速度都有关的量，包含了机械系统产生的克里奥利力、离心力和重力的作用，它是一个$n_u$维的矢量：
+\begin{align}
+    {\mathbfit h} \in {\mathbb R}^{n_u}
+\end{align}
+
+这其中${\mathbfit S}$是一个选择矩阵，可以用来选择整个公式中哪些自由度被激活，它是一个$n_{\tau} \times n_u$的矩阵：
+\begin{align}
+    {\mathbfit S} = \begin{bmatrix}{\mathbfit 0}_{n_{\tau} \times (n_u - n_{\tau})} & {\mathbb I}_{n_{\tau} \times n_{\tau}}\end{bmatrix} \in {\mathbb R}^{n_{\tau} \times n_u} 
+\end{align}
+
+它其中包含的参数$n_{\tau}$表示被激活的自由度数量，如果机器人的所有自由度都被激活，则$n_{\tau} = n_j$。
+这其中${\mathbfit \tau}$是机器人各个关节的电机提供的扭矩，它是一个$n_j$维的向量：
+\begin{align}
+    {\mathbfit \tau} \in {\mathbb R}^{n_j} 
+\end{align}
+
+它的节点成员是否产生作用受到${\mathbfit S}^T$矩阵的选择。
+这其中${\mathbfit J}_S$是一些列雅可比矩阵的集合：
+\begin{align}
+    J_S=\begin{bmatrix}J^T_{C_1} & ... & J^T_{C_{n_c}}\end{bmatrix}^T  \in {\mathbb R}^{3n_c\times n_u}
+\end{align}
+
+它是接触点的支撑力${\mathbfit \lambda}$向节点力转换的矩雅可比矩阵，包含了$n_c$个雅可比矩阵，$n_c$为接触地面的肢体个数。
+
+如果足接触建模为点接触的话，在稳定接触的情况下，每个接触点会产生三个相应的约束条件：
+\begin{align}
+    \label{eq:contact_constrains}
+    \begin{cases}
+        _I\mathbfit{r}_{IC}(t)=const\\
+        _I \mathbfit{\dot r}_{IC}=\mathbfit{J}_C\mathbfit{u}=0\\
+        _I\mathbfit{\ddot r}_{IC}=\mathbfit{J}_C \mathbfit{\dot u}+\mathbfit{\dot J}_C\mathbfit{u}=0
+    \end{cases}
+\end{align}
+
+其含义就是在惯性系下看接触点的位置是固定的为定值，并且其速度和加速，也即其一阶导数和二阶导数为零。
+
+
+
+
+
+
+
+
+
+
+
+\section[分层次优化(Hierarchical Optimization)计算]{\label{section:hierarchical_opt}分层次优化(Hierarchical Optimization)计算\cite[p2]{Bellicoso_Jenelten_Fankhauser_Gehring_Hwangbo_Hutter_2017}}
+
+整个优化计算过程的最终目的是得到一个扭矩参考目标${\mathbfit \xi}_d$用来作为输入控制电机，${\mathbfit \xi}_d$包含两部分信息：关节点的运动加速度$\mathbfit{\dot u}_d^T$和接触力$\mathbfit{\lambda}_d^T$。控制方法采用接触力控制，优化化计算的策略是采取分层次优化的方式。在这一部分我们将从\ref{section:motion_model}节中描述的运动模型出发，拆接触其中的内容进行分层次优化。我们将介绍运动方程、接触部分的运动约束、接触力和扭矩限制、运动跟随、接触力最小化、根据优化结果计算电机扭矩等内容。
+
+\subsection[基体运动方程]{基体运动方程}
+通过利用选择矩阵$\mathbfit{S}^T$诱导的分解，我们可以将运动和接触力限制在浮动基系统动力学描述的流形上，有如下式：
+\begin{align}
+    \begin{bmatrix}{\mathbfit M}_{fb} & - {\mathbfit J}_{s_{fb}}^T \end{bmatrix} {\mathbfit \xi}_d = - {\mathbfit h}_{fb}
+\end{align}
+
+这里$XXX_{fb}$:下标的意思是浮动的主体-'floating base'，各个参数的具体含义解释如下：
+
+\begin{enumerate}
+    \item ${\mathbfit \xi}_d$是一个一个$n_u+n_c$行$1$列的向量： ${\mathbfit \xi}_d = \begin{bmatrix} {\mathbfit u}_d^T & {\mathbfit \lambda}_d^T \end{bmatrix} \in {\mathbb R}^{n_u+n_c}$，其中:
+    \begin{enumerate}
+        \item ${\mathbfit u}_d^T$是目标关节点的加速度；
+        \item ${\mathbfit \lambda}_d^T$是目标接触力；
+    \end{enumerate}
+    \item ${\mathbfit M}_{fb}$是复合型惯性矩阵的前六行；
+    \item ${\mathbfit J}_{s_{fb}}^T$是雅克比阵的前六行，它将接触力转换到节点的扭矩；
+    \item ${\mathbfit h}_{fb}$是非线性项的前六行，包括克里奥利力、离心力和重力项；
+\end{enumerate}
+
+\subsection[地面接触部分运动约束]{地面接触部分运动约束}
+
+控制器找到的解决方案不应违反\eqref{eq:contact_constrains}中定义的接触约束。因此，我们通过设置在接触点施加空加速度:
+\begin{align}
+    \begin{bmatrix} {\mathbfit J}_s & {\mathbfit 0}_{3n_c \times 3n_c}\end{bmatrix} {\mathbfit \xi}_d = - \dot {\mathbfit J}_s {\mathbfit u} 
+\end{align}
+
+它将${\mathbfit \xi}_d$带进去计算后就得到了：${\mathbfit J}_s  {\mathbfit \xi}_d  = - \dot {\mathbfit J}_s {\mathbfit u}$其实就是公式\eqref{eq:contact_constrains}的第二个式子${\mathbfit J}_s  {\mathbfit \xi}_d  + \dot {\mathbfit J}_s {\mathbfit u} = 0$。
+
+\subsection[接触力限制]{接触力限制}
+
+\begin{align}
+    \begin{cases}
+        \label{eq:friction_constrains}
+        (_I{\mathbfit h} - {_I{\mathbfit n}}_{\mu})^T {_I{\mathbfit \lambda}}_k\leq & 0 \\
+        - (_I{\mathbfit h} + {_I{\mathbfit n}}_{\mu})^T {_I{\mathbfit \lambda}}_k\leq & 0 \\
+        (_I{\mathbfit l} - {_I{\mathbfit n}}_{\mu})^T {_I{\mathbfit \lambda}}_k\leq & 0 \\
+        - (_I{\mathbfit l} + {_I{\mathbfit n}}_{\mu})^T {_I{\mathbfit \lambda}}_k\leq & 0
+    \end{cases}
+\end{align}
+
+$_In$是接触面的法向量；$\mu$是摩擦系数；有了这两个再乘上受力$_I\lambda$，就可以得出最大静摩擦力$_I{\mathbfit n}_{\mu}^T \lambda$。实际在接触点平行于地面方向的两个分力$_I{\mathbfit h}$，$_I{\mathbfit l}$在正反方向上都不应该比这个值大，否则就会发生滑动。这就是公式\eqref{eq:friction_constrains}约束的由来。
+
+\subsection[扭矩限制]{扭矩限制}
+对于扭矩有如下约束：
+\begin{align}
+    \label{eq:torque_constrains}
+    {\mathbfit \tau}_{min}-{\mathbfit h}_j 
+    \leq \begin{bmatrix} {\mathbfit M}_j & -{\mathbfit J}^T_{s_j} \end{bmatrix} 
+    \leq {\mathbfit \tau}_{max}-{\mathbfit h}_j 
+\end{align}
+
+这里的${\mathbfit h}_j$就是科里奥利力那一堆东西。
+而$\begin{bmatrix} {\mathbfit M}_j & -{\mathbfit J}^T_{s_j} \end{bmatrix}$就是加速度力${\mathbfit M}_j  \dot{\mathbfit u}_d^T$和传递力$-{\mathbfit J}^T_{s_j} {\mathbfit \lambda}_d^T$两项的和。它们计算的结果就是电机提供的扭矩力${\mathbfit \tau}$克服完${\mathbfit h}({\mathbfit q}, {\mathbfit u})$剩下的力。
+
+\subsection[目标运动跟随控制]{目标运动跟随控制}
+
+为了能跟随浮动主体和摆动腿的目标运动。
+我们通过实现具有前馈参考加速度和运动相关状态反馈状态的操作空间控制器来约束关节加速度。
+对于主体的线性运动：
+\begin{align}
+    \begin{bmatrix}
+    _C{\mathbfit J}_P & {\mathbfit 0}
+    \end{bmatrix} 
+    {\mathbfit \xi}_d = _C\ddot {\mathbfit r}_{IB}^d 
+    + {\mathbfit k}_D^{pos}(_C \dot{\mathbfit r}_{IB}^d-_C{\mathbfit v}_B) 
+    + {\mathbfit k}_P^{pos}(_C{\mathbfit r}_{IB}^d-_C{\mathbfit r}_B)
+\end{align}
+
+对于主体的角度运动：
+\begin{align}
+    \begin{bmatrix}
+    _C{\mathbfit J}_R & {\mathbfit 0}
+    \end{bmatrix} 
+    {\mathbfit \xi}_d = 
+    - {\mathbfit k}_D^{ang} {_C{\mathbfit \omega}}_{B}
+    + {\mathbfit k}_P^{ang}({\mathbfit q}_{CB}^d \Xi {\mathbfit q}_{CB})
+\end{align}
+
+具体参数解释如下：
+\begin{itemize}
+    \item 雅可比矩阵$_C{\mathbfit J}_P$和$_C{\mathbfit J}_R$是与\emph{控制坐标系C}（这是一个与地形局部估计和机器人航向方向对齐的帧）中表达的基相关的平移和旋转雅可比矩阵。
+    \item ${\mathbfit \Xi}$这个算子产生欧拉向量，表示期望姿态$q^d_{CB}$和估计姿态$q_{CB}$之间的相对方向。
+    \item 这里面${\mathbfit k}_P^{pos}, {\mathbfit k}_D^{pos}, {\mathbfit k}_P^{ang}, {\mathbfit k}_D^{ang}$是用来控制增益的对角正定矩阵。
+    \item 参考的运动$_C{\mathbfit r}_{IB}$和它的导数是运动规划的结果。
+\end{itemize}
+
+\subsection[接触力最小化]{接触力最小化}
+可以通过下面的方法将接触力设置为最小值：
+\begin{align}
+    \begin{bmatrix}
+    {\mathbfit 0}_{3n_c \times n_u} & {\mathbb I}_{3n_c \times 3n_c}
+    \end{bmatrix}
+    {\mathbfit \xi}_d = 0
+\end{align}
+
+这个式子的含义是让每个接触力的目标值都为零。
+
+\subsection[根据优化结果计算电机扭矩]{根据优化结果计算电机扭矩}
+
+如果给定了一个优化的关节点运动和接触力，${\mathbfit \xi}_d = \begin{bmatrix}
+\dot {\mathbfit u}_d^T & {\mathbfit \lambda}_d^T
+\end{bmatrix}^T$
+我们可以用以下公式计算各个电机的扭矩：
+$${\mathbfit \tau}_d = \begin{bmatrix} {\mathbfit M}_j & -{\mathbfit J}^T_{s_j}\end{bmatrix} {\mathbfit \xi}_d + {\mathbfit h}_j$$
+其中${\mathbfit M}_j,\, -{\mathbfit J}^T_{s_j}, \, {\mathbfit h}_j$在公式\eqref{eq:torque_constrains}已中定义。
+
+因此，所有规划的目的就是给出关节点的运动加速度$\dot{\mathbfit u}_d^T$和接触力${\mathbfit \lambda}_d^T$目标，也即$\mathbfit{\xi}_d^*$，从它出发直接计算得到控制各个关节点电机的扭矩目标。
+
+
+
+
+
+
+
+
+
+
+
+
+\section[质心运动优化(Motion Optimization)]{质心运动优化(Motion Optimization)\cite[p3]{Bellicoso_Jenelten_Fankhauser_Gehring_Hwangbo_Hutter_2017}}
+在机械狗的运动模型描述\ref{section:motion_model}节部分我们定义了一些关键参数，拥有了对机械狗运动的描述；在分层次优化\ref{section:hierarchical_opt}节部分我们分解了运动方程的成分并给出了一些硬性约束条件和底层控制方法，知道了如何从关节点的运动加速度$\mathbfit{\dot u}_d^T$的目标值和接触力$\mathbfit{\lambda}_d^T$的目标值这两个变量得到对电机的扭矩$\mathbfit{\tau}_d$的控制目标值。下面就要进行实际的运动优化问题描述和求解，来计算出关节点的运动加速度$\mathbfit{\dot u}_d^T$的目标值和接触力$\mathbfit{\lambda}_d^T$的目标值。
+
+整个机器人的控制遵循一下流程：首先由预定义的方式设定机器人应该遵循的步态\ref{section:foot_hold}节；为了保持机器人的稳定性，这些步态的生成需要满足ZMP约束，也即机械狗的步态是由一些列的支撑多边形序列具体定义的\ref{section:support_polygon}节；在机器人获得稳定支撑的基础上，我们根据外部的指令对机器人的具体运动方式调整以获得指令要求的目标运动，这被描述为一个运动优化问题\ref{section:motion_opt_problem}；在优化前首先要对初始状态进行规划初始化\ref{section:optimization_init}节；优化过程采用质心运动优化的方式进行，这是一个二次优化问题，它的具体建立在\ref{section:com_opt_setup}节给出。
+
+\subsection[足态保持生成]{\label{section:foot_hold}足态保持生成}
+外部高级速度命令用于通过调整参考立足点以特定方向和速度驱动运动，这些立足点是针对每个新控制回路的每条腿计算的。根据腿的接触状态，这些是通过两种不同的方式计算的：当腿接触时，命令速度将被投影到计算的立足点位置，以便平均躯干速度与所需的运动速度相匹配；当腿摆动时，参考立足点以相同的方式计算，但添加了一个速度反馈项，该项用来在机器人受到会导致速度控制误差的外部推力时稳定机器人。相关细节参考文献\cite{Gehring_Coros_Hutter_Bellicoso_Heijnen_Diethelm_Bloesch_Fankhauser_Hwangbo_Hoepflinger_et_al_2016}。
+
+\textcolor{red}{这块儿随后要看看，补充到下面...}
+
+\subsection[支撑多边形序列生成]{\label{section:support_polygon}支撑多边形序列生成}
+
+我们在相域中(phase domain)为每条腿定义升降事件$\phi_{lo}$和触下事件$\phi_{td}$。这也定义了所有腿的接触时间表。给定所有腿的触下和升降事件，以及当前脚位置和所需立足点的集合，我们可以计算一系列支持多边形(定义为顶点元组和以秒为单位的时间持续时间)用于\emph{运动规划器}。
+
+当一个新的运动计划可用时，我们都会执行这样的操作。这样新的解决方案就可以适应接触计划的变化、参考立足点的变化以及高级操作员速度的变化。
+
+为了计算每个多边形，我们从当前阶段$\phi$开始，并存储接触的脚的$x-y$坐标。我们搜索$k=1$的下一阶段事件$\phi_k$以获得第一个多边形$t_0=  t_s(\phi_k-\phi)$的持续时间，$t_s$是以秒为单位的步幅持续时间。这样，我们就通过顶点及其持续时间在几秒钟内完全定义了一个支持多边形。
+我们通过将$\phi$更新为$\phi_k$并搜索下一阶段相位事件来不断迭代。由于接触计划是周期性的，我们重复这些步骤，直到相位事件$\phi_0+1$，对应于起始相位$\phi_0$。
+
+\subsection[质心运动优化问题描述]{\label{section:motion_opt_problem}运动优化问题描述\cite[p3]{Bellicoso_Jenelten_Gehring_Hutter_2018}}
+与文献中类似，每一个坐标方向的质心运动规划都被描述成一个系列的五次样条。比如沿着x方向的其中第$i-th$曲线可以描述为：
+\begin{align}
+    \label{eq:com_motion}
+    x(t) = & a_{i5}^x t^5 +  a_{i4}^x t^4 + a_{i3}^x t^3 +  a_{i2}^x t^52+  a_{i1}^x t^1 +  a_{i0}^x t^0 \notag\\
+    = & \begin{bmatrix}t^5 & t^4 & t^3 & t^2 & t^1 & t^0\end{bmatrix} \notag\\ 
+    & \cdot \begin{bmatrix}a_{i5} & a_{i4} & a_{i3} & a_{i2} & a_{i1} & a_{i0}\end{bmatrix} \notag\\
+    = & {\mathbfit \eta}^T(t){\mathbfit \alpha}_i^x
+\end{align}
+
+ 
+这其中$t\in [t, t+\Delta t_i]$是第$i$个曲线段前所有$(i-1)$个曲线持续时间长度的总和，$\Delta t_i$是第$i$个曲线持续的时长。
+基于\eqref{eq:com_motion}的关于位置的表述，可以很容易地将关于速度和加速度的表述写出来：
+\begin{align}
+\dot x(t) = \dot {\mathbfit \eta}^T(t){\mathbfit \alpha}_i^x \\
+\ddot x(t) = \ddot {\mathbfit \eta}^T(t) {\mathbfit \alpha}_i^x 
+\end{align}
+
+这其中：
+\begin{align}
+\mathbfit{\dot \eta}^T(t) =  \begin{bmatrix}5t^4 & 4t^3 & 3t^2 & 2t^1 & 1 & 0\end{bmatrix}^T\\
+\mathbfit{\ddot \eta}^T(t) =  \begin{bmatrix}20t^3 & 12t^2 & 6t^t & 2 & 0 & 0\end{bmatrix}^T
+\end{align}
+
+对于质心在$y,\, z$方向上的描述是一样的。每一条质心曲线都由$x,y,z$三部分分量${\mathbfit \alpha}_i = \begin{bmatrix}{{\mathbfit \alpha}_i^x}^T & {{\mathbfit \alpha}_i^y}^T & {{\mathbfit \alpha}_i^z}^T\end{bmatrix}^T$组成，可以将$n_s$条质心曲线的$3n_s$条曲线参数写到一起，优化的参数矢量可以写成：${\mathbfit \alpha} = \begin{bmatrix}{\mathbfit \alpha}_0^T & ...& {\mathbfit \alpha}_i^T &...& {\mathbfit \alpha}_{n_s}^T\end{bmatrix}^T$。
+这样一来，质心的位置可以表示为：
+\begin{align}
+    {\mathbfit p}_{CoM}(t) = {\mathbfit T}(t){\mathbfit \alpha}_i \in{\mathbb R}^3
+    , \quad
+    {\mathbfit T}(t) = 
+    \begin{bmatrix}
+    {\mathbfit \eta}^T(t) & 0 & 0 \\
+    0 & {\mathbfit \eta}^T(t) & 0 \\
+    0 & 0 & {\mathbfit \eta}^T(t)
+    \end{bmatrix}
+\end{align}
+
+同样质心的速度和加速度也可以得到了：
+
+\begin{align}
+    \dot {\mathbfit p}_{CoM}(t) = \dot {\mathbfit T}(t){\mathbfit \alpha}_i \in{\mathbb R}^3 \\
+    \ddot {\mathbfit p}_{CoM}(t) = \ddot {\mathbfit T}(t){\mathbfit \alpha}_i \in{\mathbb R}^3
+\end{align}
+
+这样一来整个优化问题就变为了通过求解\emph{二次优化问题(Quadratic Problem, QP)}问题寻找优化的参数
+${\mathbfit \alpha} = \begin{bmatrix}{\mathbfit \alpha}_0^T & ...& {\mathbfit \alpha}_i^T &...& {\mathbfit \alpha}_{n_s}^T\end{bmatrix}^T$。接下来将逐步介绍这个优化问题的建立：
+
+\begin{align}
+    \label{function:optimization_problem}
+    \overset{min.}{\mathbfit{\alpha}} \quad & \frac{1}{2}\mathbfit{\alpha}^T \mathbfit{ Q \alpha} + \mathbfit{c}^T\mathbfit{\alpha} \\
+    s.t. \quad & \mathbfit{A\alpha} = \mathbfit{ b}, \quad \mathbfit{D\alpha} \leq \mathbfit{f}. 
+\end{align}
+
+简单起见，接下来的描述中除特殊说明外都采用$x$轴方向来表述代指各条曲线段$\mathbfit{\alpha}_i = \begin{bmatrix}{\mathbfit{\alpha}_i^x}^T & {\mathbfit{\alpha}_i^y}^T & {\mathbfit{\alpha}_i^z}^T\end{bmatrix}^T$。
+
+
+\subsection[规划初始化]{\label{section:optimization_init}规划初始化}
+运动计划使用扩展状态（位置、速度和加速度）进行初始化，该扩展状态用作样条序列初始状态的硬约束。这是通过使用一个\emph{alpha滤波器}来融合前一次目标位置$_C\mathbfit{r}_{IB}^{des}$和当前测量$_C\mathbfit{r}_{IB}$到的位置实现的：
+\begin{align}
+    _C\mathbfit{r}_{IB}^{ref}=\alpha _C\mathbfit{r}_{IB}^{des}+(1-\alpha)_C\mathbfit{r}_{IB}
+\end{align}
+其中$\alpha=0.5e^{-\mathbfit{\lambda} t_c}$，其中$\mathbfit{\lambda}\in \mathbb{R}$是一个用来调节前一次目标位置随其已完成时间长度$t_c$的权重。
+类似的过滤器也用于设置初始速度，而加速度使用最后可用的参考值进行初始化。
+
+
+
+
+
+
+
+
+
+
+
+
+\section[质心运动优化QP问题的建立]{\label{section:com_opt_setup}质心运动优化QP问题建立}
+如\ref{section:motion_opt_problem}节所述，质心运动优化问题是可以转化成一个多维二次优化问题，本节将具体描述这问题的建立。一个二次优化问题主要由三个部分的定义：\emph{成本函数}、\emph{等式约束}、\emph{不等式约束}。另外，如果约束太紧可能求解不出结果，因此要进行一定的\emph{约束松弛}
+
+\subsection[成本函数]{\label{section:cost_function}成本函数}
+
+% \noindent\textbf{成本函数}
+
+在我们的问题描述中，在公式\eqref{function:optimization_problem}中出现的Hessian矩阵$\mathbfit{Q}\in\mathbb{R}^{12n\times12n}$和线性项$\mathbfit{c}\in\mathbb{R}^{12n}$都有若干组成部分。我们通过下面式子来惩罚实际位置$\mathbfit{p}(t)=\mathbfit{T}(t)\mathbfit{\alpha}$与$\mathbfit{p}_r$的偏差:
+
+\begin{align}
+    \label{function:penalize_deviation}
+    \begin{cases}
+        \frac{1}{2}\|\mathbfit{T}\mathbfit{\alpha}-\mathbfit{p}_r\|^2_{\mathbfit{W}}\\
+        =\frac{1}{2}(\mathbfit{T}\mathbfit{\alpha}-\mathbfit{p}_r)^T \mathbfit{W} (\mathbfit{T}\mathbfit{\alpha}-\mathbfit{p}_r)\\
+        =\frac{1}{2}\mathbfit{\alpha}^T\mathbfit{T}^T \mathbfit{W} \mathbfit{T}\mathbfit{\alpha}-\mathbfit{p}_r^T \mathbfit{W} \mathbfit{T}\mathbfit{\alpha}+\frac{1}{2}\mathbfit{p}_r^T \mathbfit{W} \mathbfit{p}_r
+    \end{cases}
+\end{align}
+
+最小化公式\eqref{function:penalize_deviation}中的最小化平方范数相当于用公式\eqref{function:optimization_problem}的形式求解QP问题：
+\begin{align}
+    \mathbfit{Q}=\mathbfit{T}^T\mathbfit{W}\mathbfit{T} \quad \mathbfit{c}=-\mathbfit{T}^T\mathbfit{W}^T\mathbfit{p}_r
+\end{align}
+
+为了惩罚速度参考的偏差，只需在公式\eqref{function:penalize_deviation}中使用$\mathbfit{\dot T}$和$\mathbfit{\dot p}_r$。可以对加速度偏差进行类似的推理。
+
+一般来说为了使得控制更平滑、节能、稳定，成本函数会包括一些加速度最小化、软最终约束、过大偏差抑制等项目\cite[p5]{Bellicoso_Jenelten_Fankhauser_Gehring_Hwangbo_Hutter_2017}。
+
+
+\subsubsection{加速度最小化}
+如文献\cite[p]{Kalakrishnan_Buchli_Pastor_Mistry_Schaal_2010}所示，我们可以通过写作来最小化加速度：
+\begin{align}
+    \label{function:cost_Q_k1}
+    {\mathbfit Q}_k^{acc} = 
+    \begin{bmatrix}
+    (400/7)\Delta t_k^7 & 40\Delta t_k^6 & 24\Delta t_k^5 & 10\Delta t_k^4 & \\
+    40\Delta t_k^6 & 28.8\Delta t_k^5 & 18\Delta t_k^4 & 8\Delta t_k^3 & \\
+    24\Delta t_k^5 & 18\Delta t_k^4 & 12\Delta t_k^3 & 6\Delta t_k^2 & {\mathbfit 0}_{4\times 2}\\
+    10\Delta t_k^4 & 8\Delta t_k^3 & 6\Delta t_k^2 & 4\Delta t_k &\\
+     & {\mathbfit 0}_{2\times 4} & & & {\mathbfit 0}_{2\times 2}
+    \end{bmatrix}
+\end{align}
+
+此时非线性项$\mathbfit{c}_k^{acc}=0$。这里请注意，如果这是添加到成本函数的唯一项，则不会有与每个样条的$\alpha_{1k}$和$\alpha_{2k}$系数相关联的成本，从而导致正半定Hessian矩阵。当使用诸如\emph{Active Set one}\cite[p]{Goldfarb_Idnani_1983}之类的方法时，这是有问题的，该方法要求Hessian矩阵是正定的。在这种情况下，可以添加一个正则化项：
+\begin{align}
+    \label{function:cost_Q_k2}
+    \mathbfit{Q}_k^{acc_{\rho}}=\begin{bmatrix}
+        0_{4\times4} & 0_{4\times2}\\
+        0_{2\times4} & \rho \mathbb{I}——{2\times2}
+    \end{bmatrix}
+\end{align}
+
+其中$\rho=10e^{{-8}}$，线性项为空。
+
+\textcolor{gray}{\small
+    从文献\cite[p]{Goldfarb_Idnani_1983}中看得，由于两次求导，$\alpha_{1k}, \, \alpha_{2k}$将都是零。这样整个成本函数就从\eqref{function:cost_Q_k1}简化成了\eqref{function:cost_Q_k2}，这在对矩阵初始化的时候很有意义因为非零项会被初始化成很小的数$\rho=10e^{-8}$，而恒零项就可以直接赋值为0。
+}
+\subsubsection{软最终约束\label{section:soft_final_constrants}}
+
+我们将最终位置$\mathbfit{p}_f\in\mathbb{R}^2$设置为由计划立足点定义的多边形的中心$\mathbfit{p}_f^{ref}\in\mathbb{R}^2$，这是如果机器人支持多边形序列的末尾停止，它将支持机器人的多边形。为了最小化这个范数$\|\mathbfit{p}_f-\mathbfit{p}_f^{ref}\|^2_{\mathbfit{W}_f}=\|\mathbfit{A}_f\mathbfit{s}_f-\mathbfit{p}_f^{ref}\|^2_{\mathbfit{W}_f}$，给出如下式子：
+
+\begin{align}
+    \mathbfit{Q}_f=\mathbfit{A}_f^T \mathbfit{W}_f \mathbfit{A} \quad \mathbfit{c}_f=-\mathbfit{A}^T \mathbfit{W}_f \mathbfit{p}_f^{ref}
+\end{align}
+
+其中$\mathbfit{W}_f \in \mathbb{R}^{2\times2}$是一个正权重的对称对角矩阵。
+为了避免优化器将最终状态放置在远离参考位置的解决方案，我们在位置上添加不等式约束，使其被限制在以参考位置为中心的框中。
+
+\subsubsection{偏离之前目标的解决方案\label{section:deviation_previous}}
+由于一旦前一个优化成功，我们就计算一个新的优化，为了避免连续运动计划之间的较大偏差，我们惩罚当前解$\mathbfit{\xi}$得到的位置、速度和加速度与前一个解$\mathbfit{\xi}_{i-1}$产生的偏差。
+
+记$t_{pre}$是前一个结果给出后消逝的时间长度，我们通过下式惩罚两者的偏差：
+\begin{align}
+    \|\mathbfit{p}(\bar t)-\mathbfit{p}_{i-1}(t_{pre}+\bar t)\|^2_{\mathbfit{W}_f}, \bar t \in[0, t_f]
+\end{align}
+
+其中$t_f=\sum_{k=0}^{n-1}f_{fk}$是之前所有$n$段曲线持续时间的总和。我们使用样本时间$dt$离散化优化范围$[0, t_f]$。我们采用类似的成本函数来惩罚上一个解决方案获得的速度和加速度的偏差。
+
+\subsubsection{轨迹正则化}
+
+运动计划的持续更新可能会导致躯干相对于参考立足点的运动漂移。这可能是由于控制误差的累积造成的，这改变了解决方案，使运动变得不可行。为了避免这个问题，我们添加一个与\emph{参考正则化器路径}的偏差比较的成本。这个正则化的路径可以近似表示成曲线段$\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$，这个路径正则化器的样条系数是从最小化问题设置中获得的，使得：
+\begin{itemize}
+    \item $\mathbfit{\pi}(t)$的初始位置与初始化时支撑多边形的中心位置重合，$\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$与初始速度和加速度重合；
+    \item $\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$的结束状态由\ref{section:soft_final_constrants}节中定义。
+    \item 加速度最小化
+    \item 通过在样条结点上的状态设置等式约束来平滑地连接样条线
+\end{itemize}
+
+通过对\ref{section:deviation_previous}节中所做的整个运动进行采样，我们惩罚从路径正则化器产生的运动的偏差。
+
+% \begin{itemize}
+%     \item \textbf{加速度最小化：}{如文献\cite[p]{Kalakrishnan_Buchli_Pastor_Mistry_Schaal_2010}所示，我们可以通过写作来最小化加速度：
+%     \begin{align}
+%         \label{function:cost_Q_k1}
+%         {\mathbfit Q}_k^{acc} = 
+%         \begin{bmatrix}
+%         (400/7)\Delta t_k^7 & 40\Delta t_k^6 & 24\Delta t_k^5 & 10\Delta t_k^4 & \\
+%         40\Delta t_k^6 & 28.8\Delta t_k^5 & 18\Delta t_k^4 & 8\Delta t_k^3 & \\
+%         24\Delta t_k^5 & 18\Delta t_k^4 & 12\Delta t_k^3 & 6\Delta t_k^2 & {\mathbfit 0}_{4\times 2}\\
+%         10\Delta t_k^4 & 8\Delta t_k^3 & 6\Delta t_k^2 & 4\Delta t_k &\\
+%          & {\mathbfit 0}_{2\times 4} & & & {\mathbfit 0}_{2\times 2}
+%         \end{bmatrix}
+%     \end{align}
+    
+%     此时非线性项$\mathbfit{c}_k^{acc}=0$。这里请注意，如果这是添加到成本函数的唯一项，则不会有与每个样条的$\alpha_{1k}$和$\alpha_{2k}$系数相关联的成本，从而导致正半定Hessian矩阵。当使用诸如\emph{Active Set one}\cite[p]{Goldfarb_Idnani_1983}之类的方法时，这是有问题的，该方法要求Hessian矩阵是正定的。在这种情况下，可以添加一个正则化项：
+%     \begin{align}
+%         \label{function:cost_Q_k2}
+%         \mathbfit{Q}_k^{acc_{\rho}}=\begin{bmatrix}
+%             0_{4\times4} & 0_{4\times2}\\
+%             0_{2\times4} & \rho \mathbb{I}——{2\times2}
+%         \end{bmatrix}
+%     \end{align}
+    
+%     其中$\rho=10e^{{-8}}$，线性项为空。
+    
+%     \textcolor{gray}{\small
+%         从文献\cite[p]{Goldfarb_Idnani_1983}中看得，由于两次求导，$\alpha_{1k}, \, \alpha_{2k}$将都是零。这样整个成本函数就从\eqref{function:cost_Q_k1}简化成了\eqref{function:cost_Q_k2}，这在对矩阵初始化的时候很有意义因为非零项会被初始化成很小的数$\rho=10e^{-8}$，而恒零项就可以直接赋值为0。
+%     }
+%     }
+%     \item \textbf{软最终约束：}{\label{section:soft_final_constrants}
+%     我们将最终位置$\mathbfit{p}_f\in\mathbb{R}^2$设置为由计划立足点定义的多边形的中心$\mathbfit{p}_f^{ref}\in\mathbb{R}^2$，这是如果机器人支持多边形序列的末尾停止，它将支持机器人的多边形。为了最小化这个范数$\|\mathbfit{p}_f-\mathbfit{p}_f^{ref}\|^2_{\mathbfit{W}_f}=\|\mathbfit{A}_f\mathbfit{s}_f-\mathbfit{p}_f^{ref}\|^2_{\mathbfit{W}_f}$，给出如下式子：
+    
+%     \begin{align}
+%         \mathbfit{Q}_f=\mathbfit{A}_f^T \mathbfit{W}_f \mathbfit{A} \quad \mathbfit{c}_f=-\mathbfit{A}^T \mathbfit{W}_f \mathbfit{p}_f^{ref}
+%     \end{align}
+    
+%     其中$\mathbfit{W}_f \in \mathbb{R}^{2\times2}$是一个正权重的对称对角矩阵。
+%     为了避免优化器将最终状态放置在远离参考位置的解决方案，我们在位置上添加不等式约束，使其被限制在以参考位置为中心的框中。
+    
+%     }
+%     \item \textbf{过大偏移过滤：}{\label{section:deviation_previous}由于一旦前一个优化成功，我们就计算一个新的优化，为了避免连续运动计划之间的较大偏差，我们惩罚当前解$\mathbfit{\xi}$得到的位置、速度和加速度与前一个解$\mathbfit{\xi}_{i-1}$产生的偏差。
+
+%     记$t_{pre}$是前一个结果给出后消逝的时间长度，我们通过下式惩罚两者的偏差：
+%     \begin{align}
+%         \|\mathbfit{p}(\bar t)-\mathbfit{p}_{i-1}(t_{pre}+\bar t)\|^2_{\mathbfit{W}_f}, \bar t \in[0, t_f]
+%     \end{align}
+    
+%     其中$t_f=\sum_{k=0}^{n-1}f_{fk}$是之前所有$n$段曲线持续时间的总和。我们使用样本时间$dt$离散化优化范围$[0, t_f]$。我们采用类似的成本函数来惩罚上一个解决方案获得的速度和加速度的偏差。
+%     }
+%     \item \textbf{轨迹正则化：}{
+%     运动计划的持续更新可能会导致躯干相对于参考立足点的运动漂移。这可能是由于控制误差的累积造成的，这改变了解决方案，使运动变得不可行。为了避免这个问题，我们添加一个与\emph{参考正则化器路径}的偏差比较的成本。这个正则化的路径可以近似表示成曲线段$\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$，这个路径正则化器的样条系数是从最小化问题设置中获得的，使得：
+%     \begin{itemize}
+%         \item $\mathbfit{\pi}(t)$的初始位置与初始化时支撑多边形的中心位置重合，$\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$与初始速度和加速度重合；
+%         \item $\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$的结束状态由\ref{section:soft_final_constrants}节中定义。
+%         \item 加速度最小化
+%         \item 通过在样条结点上的状态设置等式约束来平滑地连接样条线
+%     \end{itemize}
+    
+%     通过对\ref{section:deviation_previous}节中所做的整个运动进行采样，我们惩罚从路径正则化器产生的运动的偏差。}
+% \end{itemize}
+
+根据实际策略的不同，成本函数可能会对一些项目进行调整，还可能会包含一些其它的项目，如文献中表述\cite[p4]{Bellicoso_Jenelten_Gehring_Hutter_2018}。
+
+\subsection[等式约束]{等式约束}
+% \noindent\textbf{等式约束}
+
+\textcolor{gray}{\small
+    等式约束主要是从规划曲线段的连续性上出发的。整体上就是要求曲线段的位置、速度、加速度前后连续。}
+
+由于整个运动由一系列样条组成，我们设置运动优化问题以确保它们前后相连接。由于初始状态不能被运动规划器修改，我们设置了一个硬性等式约束，使得第一个样条$s_0$的初始状态与计划初始化中的一个集合重合。这个初始化的硬性等式约束可以写作$\mathbfit{p}(0)=\mathbfit{p}^r,\mathbfit{\dot p}(0)=\mathbfit{\dot p}^r,\mathbfit{\ddot p}(0)=\mathbfit{\ddot p}^r,$，于是有：
+\begin{align}
+    \begin{bmatrix}
+        \mathbfit{\eta}(0)^T\\
+        \mathbfit{\dot \eta}(0)^T\\
+        \mathbfit{\ddot \eta}(0)^T\\
+    \end{bmatrix} \mathbfit{\alpha}_0^x=
+    \begin{bmatrix}
+        \mathbfit{p}_x^r\\
+        \mathbfit{\dot p}_x^r\\
+        \mathbfit{\ddot p}_x^r\\
+    \end{bmatrix}
+\end{align}
+
+为了保证曲线段$\mathbfit{s}_k$和$\mathbfit{s}_{k+1}$是连续的，引入如下约束：
+\begin{align}
+    \begin{bmatrix}
+        \mathbfit{\eta}(t_{fk})^T & -\mathbfit{\eta}(0)^T\\
+        \mathbfit{\dot \eta}(t_{fk})^T & -\mathbfit{\dot \eta}(0)^T\\
+    \end{bmatrix} 
+    \begin{bmatrix}
+        \mathbfit{\alpha}_k^x\\
+        \mathbfit{\alpha}_{k+1}^x
+    \end{bmatrix}
+\end{align}
+
+其中$t_{fk}$表示以秒为单位的曲线$\mathbfit{s}_k$的持续时间。
+当连接两个样条的相等连接位于两个不相交的支持多边形之间时，我们不能再保证平滑度或运动，而是必须允许ZMP跳跃，这将导致加速度参考的跳跃。尽管这对控制器有负面影响，但它确实允许优化器在遍历不相交的支持多边形时找到解决方案。我们使用文献\cite{}中描述的的\emph{分离轴定理（SAT）}来检查两个支撑多边形是否相交。如果两者相交，那我们再多添加一条约束条件：
+\begin{align}
+    \begin{bmatrix}
+        \mathbfit{\ddot \eta}(t_{fk})^T & -\mathbfit{\ddot \eta}(0)^T\\
+    \end{bmatrix} 
+    \begin{bmatrix}
+        \mathbfit{\alpha}_k^x\\
+        \mathbfit{\alpha}_{k+1}^x
+    \end{bmatrix}=0
+\end{align}
+
+\subsection[不等式约束]{不等式约束}
+% \noindent\textbf{不等式约束}
+
+\textcolor{gray}{\small
+    不等约束的主要内容就是将ZMP约束到支撑多边形内部。}
+
+如[11]和[19]所示，通过约束Zero-Moment Point(ZMP)位于支撑多边形内，可以保证运动过程中的平衡。从运动计划调用时使用计划脚的位置测量的脚配置开始，我们通过使用[5]中定义的接触时间表来计算一系列支持多边形及其持续时间。通过始终假设地面上至少有两只脚，四足机器人的支撑多边形可以是一条线、三角形或四边形。
+
+正如[16]和[19]中所讨论的，ZMP的位置是质心运动的函数。ZMP的x坐标位置定义为：
+\begin{align}
+    \label{function:zmp}
+    x_{zmp}=x_{com}-\frac{z_{com}\ddot x_{com}}{g+\ddot z_{com}}
+\end{align}
+
+其中$g$是重力加速度。我们通过计算每个支撑多边形的顶点与中心点的极坐标并比较他们的相位来对其顶点进行顺时针排列。这样一来就可以通过添加下式约束来使得ZMP点满足要求：
+\begin{align}
+    ax_{zmp}+by_{zmp}+c\geq 0
+\end{align}
+
+其中，$a,b,c$是经过支撑多边形各个边的直线方程的系数。这条针线的法向量是$\mathbfit{n}=[a,b]^T$，其方向定义为指向约束多边形内部。
+
+如\ref{section:cost_function}节所述，我们对运动的最终位置$\mathbfit{p}_f$施加了额外的不等式约束。这是通过在$\mathbfit{p}_f$上添加如公式\eqref{function:zmp}形式的四个约束来获得的。
+
+
+\subsection[约束松弛]{约束松弛}
+% \textbf{约束松弛}
+
+\textcolor{gray}{\small
+约束松弛主要涉及三个方面的处理：
+\begin{itemize}
+    \item ZMP约束初始化的问题；
+    \item 支撑多边形的缩小和逐步扩大来适应实际情况；
+    \item 去除持续时间过短的约束多边形情况；
+\end{itemize}
 }
 
-
-\section[基于线性倒立摆模型的控制]{基于线性倒立摆模型的TO控制\cite[p2-5]{Bellicoso_Jenelten_Fankhauser_Gehring_Hwangbo_Hutter_2017}}
-\textcolor{red}{\small
-基于参考文献阐述基于ZMP模型的控制方法...
-}
+如果约束太紧，优化器可能会失败。首先，初始ZMP可能不位于当前支持多边形中。出于这个原因，我们在运动计划的第一个样本上排除了ZMP约束。这样优化器仍然能够找到解决方案，我们的实验表明这适用于真实系统。其次，支撑多边形安全裕度可能太高。为了抵消这一点，每当优化失败时，我们都会以固定量迭代地减少边距，并以较慢的速度将其增加以确保优化的成功。最后，我们检查与每个多边形相关的持续时间$t_{fk}$。如果它与用于离散化运动并设置约束的样本时间更小或相当，我们从序列中删除支持多边形。
 
 
-\subsection[机械狗的运动模型]{机械狗的运动模型}
-\textcolor{red}{\small
-基于参考文献阐述机械狗的一般运动学表述...
-}
-\section[基于质心动力学模型的控制]{基于质心动力学模型的TO控制\cite[p2-6]{Winkler_Bellicoso_Hutter_Buchli_2018}}
 
-\textcolor{red}{\small
-基于参考文献阐述基于接触力模型的控制方法...
-}
 
-\section[基于直接刚体动力学模型的控制]{基于直接刚体动力学模型的TO控制\cite[p2-6]{Pardo_Neunert_Winkler_Grandia_Buchli_2017}}
-\textcolor{red}{\small
-基于参考文献阐述基于刚体动力学模型的控制方法...
-}
-\section[基于MPC的控制]{基于MPC的控制\cite[p2-4]{Neunert_Stauble_Giftthaler_Bellicoso_Carius_Gehring_Hutter_Buchli_2018}}
 
-\textcolor{red}{\small
-基于参考文献阐述基于MPC的控制方法...
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
