@@ -1,94 +1,92 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter[几种构想的机器人类型草图]{几种构想的机器人类型草图}
-\begin{figure}
-  \centering
-  \subcaptionbox{Wheeled humanoid\label{fig:a_wheeled_humanoid}}
-    {\includegraphics[width=0.3\linewidth]{wheeled_humanoid.png}}
-  \subcaptionbox{Roller humanoid\label{fig:b_roller_humanoid}}
-    {\includegraphics[width=0.3\linewidth]{roller_humanoid.png}}
-  \subcaptionbox{wheeled flying\label{fig:c_wheeled_flying}}
-    {\includegraphics[width=0.3\linewidth]{wheeled_flying.png}}
-  % \subcaptionbox{分图 D\label{fig:subfig-d}}
-  %   {\includegraphics[width=0.45\linewidth]{wheeled_humanoid.png}}
-  \caption{三种构想机器人类型的示意图汇总}
-  \label{fig:multi_image}
-\end{figure}
+\chapter[强化学习案例legged\_gym库]{强化学习案例legged\_gym库}
 
-如图\ref{fig:multi_image}所示，这里给出几种近来构想的机器人结构草图和简单介绍，可以作为随后研究的机器人备选平台参考。
-
-\section[弹跳轮足+机械手机器人]{弹跳轮足+机械手机器人}
-如图\ref{fig:wheeled_humanoid}所示，该类型的机器人由类似于Ascento\cite[p1]{Klemm_Morra_Salzmann_Tschopp_Bodie_Gulich_Kung_Mannhart_Pfister_Vierneisel_et_al_2019}类型机器人的双轮足，在此基础上添加两个机械臂构成类人形机器人。该类型的机器人可以轮式地行走和跳跃，同时可以用机械臂模仿双手进行各种操作。
+% \section[强化学习案例legged\_gym库]{强化学习案例legged\_gym库\cite[p1]{Rudin_Hoeller_Reist_Hutter_2021}}
 
 % \textcolor{red}{\small
-% 待补充示意图片...
-% }
+% 这部分展示legge\_gym库关于ANYmal-c的训练代码，主要关注整个训练流程、奖励函数的设计、对Isaac-API的使用、地形设计、训练课程设计等与论文中提到的概念对应...}
+
+\section[legged\_gym工程文件结构]{legged\_gym工程文件结构\cite[p1]{Rudin_Hoeller_Reist_Hutter_2021}}
+
 \begin{figure}
   \centering
-  \includegraphics[width=0.6\linewidth]{wheeled_humanoid.png}
-  \caption[wheeled_humanoid]{Schematic view of wheeled-humanoid robot}
-  \label{fig:wheeled_humanoid}
+  \caption{\emph{legged\_gym} 整体工程文件结构}
+  \label{fig:legged_gym_overal_structure}
+  \includegraphics[width=1.0\linewidth]{legged_gym_overal_structure.png}
 \end{figure}
 
-该类型机器人的控制基础是倒立摆模型和机械臂运动学，它相对于现有双轮机器人，如Ascento\cite[p1]{Klemm_Morra_Salzmann_Tschopp_Bodie_Gulich_Kung_Mannhart_Pfister_Vierneisel_et_al_2019}等，新的控制问题难点是：
-\begin{enumerate}
-  \item 在机械手运动的同时保持双轮足的稳定，比如从空手到搬起重物的过程；
-  \item 如何让手臂配合轮足实现更加灵巧和优雅的动作；
+
+\subsection[\emph{legged\_gym}工具包]{\emph{legged\_gym}工具包}
+\begin{figure}
+  \centering
+  \subcaptionbox{\emph{legged\_gym} project structure\label{fig:legged_gym_structure}}
+  {\includegraphics[width=0.43\linewidth]{legged_gym_structure.png}}
+  \subcaptionbox{\emph{legged\_gym/envs} folder structure\label{fig:legged_gym_envs_structure}}
+  {\includegraphics[width=0.46\linewidth]{legged_gym_envs_structure.png}}
+\end{figure}
+
+
+\subsection[从Isaac仿真环境中获取信息]{从Isaac仿真环境中获取信息}
+
+\begin{figure}
+  \centering
+  \caption{\emph{function: \_init\_buffers} 这个函数处理了来自仿真环境中的数据；初始化了计算会用到的原始信息和将会生成的相关信息的内存空间；设置了关节点的位置偏移和PD增益。}
+  \label{fig:legged_function_init_buffers}
+  \includegraphics[width=1.0\linewidth]{legged_function_init_buffers.png}
+\end{figure}
+
+
+
+
+
+
+
+
+
+
+\section[LeggedRobot类]{LeggedRobot类}
+在\emph{legged\_gym}中用于足式机器人的仿真核心类就是\emph{LeggedRobot}，它位于\emph{../legged\_gym/legged\_gym/envs/legged\_robot.py}文件中。下面将介绍它内部核心实现函数。
+
+\subsection[LeggedRobot.step函数]{LeggedRobot.step函数}
+在整个LeggedRobot类中\emph{step}函数是一个提纲挈领性的函数，它调用其余各个部分函数组件实现仿真的循环。外部函数对LeggedRobot类的激活就是通过调用其中的\emph{step}函数实现的。在\emph{legged\_gym}工程中\emph{step}函数的调用出现在这几个地方：\begin{enumerate}
+  \item legged\_gym/legged\_gym/envs/base/base\_task.py中的\emph{BaseTask}类；
+  \item legged\_gym/legged\_gym/scripts/play.py中的\emph{play}函数；
+  \item legged\_gym/legged\_gym/scripts/test\_env.py中的\emph{test\_env}函数；
 \end{enumerate}
 
-\section[轮鞋足式+机械手机器人]{轮鞋足式+机械手机器人}
-如图\ref{fig:roller_humanoid}所示，该类型的机器人由类似一般人形机器人的基本结构，在此基础之上为每个脚添加四个轮子
-
-% \textcolor{red}{\small
-% 待补充示意图片...
-% }
 \begin{figure}
   \centering
-  \includegraphics[width=0.6\linewidth]{roller_humanoid.png}
-  \caption[roller_humanoid]{Schematic view of roller humanoid.}
-  \label{fig:roller_humanoid}
+  \caption[LeggedRobot.step函数]{LeggedRobot.step函数}
+  \label{fig:legged_function_step}
+  \includegraphics[width=1.0\linewidth]{legged_function_step.png}
 \end{figure}
 
-该类型机器人的控制基础是ZMP约束和机械臂运动学，它相对于现有人形机器人，如\cite[p]{Herzog_Rotella_Schaal_Righetti_2015, Dietrich_Bussmann_Petit_Kotyczka_Ott_Lohmann_Albu_Schäffer_2015}等，新的控制问题难点是：
-\begin{enumerate}
-  \item 如何实现步态和轮式之间的运动切换；
-  \item 如何实现步态和轮式的联合运动平衡；
-  \item 在上面两点的基础上，如何结合机械臂实现更加灵巧、优雅、节能的动作；
+如图所示，\emph{step}函数的功能主要通过调用一下几个函数实现：\begin{enumerate}
+  \item \emph{self.render}；
+  \item \emph{self.compute\_torques}；
+  \item \emph{self.gym.set\_dof\_actuation\_force\_tensor}；
+  \item \emph{self.gym.simulate}；
+  \item \emph{self.gym.fetch\_results}
+  \item \emph{self.gym.refresh\_dof\_state\_tensor}；
+  \item \emph{self.post\_physics\_step}；
 \end{enumerate}
 
-\section[弹跳轮足+飞行器机器人]{弹跳轮足+飞行器机器人}
-如图\ref{fig:wheeled_flying}所示，该类型的机器人由类似于Ascento\cite[p1]{Klemm_Morra_Salzmann_Tschopp_Bodie_Gulich_Kung_Mannhart_Pfister_Vierneisel_et_al_2019}类型机器人的双轮足，在此基础之上添加一对旋翼使其具备飞行能力。
+这其中比较关于仿真环境的\emph{self.gym.xxx}我们暂时不讨论，下面主要关注这三个：\emph{self.render}；\emph{self.compute\_torques}；\emph{self.post\_physics\_step}。
 
-% \textcolor{red}{\small
-% 待补充示意图片...
-% }
-\begin{figure}
-  \centering
-  \includegraphics[width=0.6\linewidth]{wheeled_flying.png}
-  \caption[short]{Schematic view of wheeled-flying robot.}
-  \label{fig:wheeled_flying}
-\end{figure}
+\subsection[self.render函数]{self.render函数}
 
-该类型机器人的控制基础是倒立摆模型和飞行器控制，它相对于现有双轮机器人，如Ascento\cite[p1]{Klemm_Morra_Salzmann_Tschopp_Bodie_Gulich_Kung_Mannhart_Pfister_Vierneisel_et_al_2019}等，新的控制问题难点是：
-\begin{enumerate}
-  \item 飞行器的矢量控制；
-  \item 如何优化设计使得旋翼提供的升力可以满足飞行控制
-  \item 续航安全问题；
-  \item 如何让旋翼配合轮足实现更加灵巧、优雅、节能、稳定的动作；
-\end{enumerate}
+\subsection[self.compute\_torques函数]{self.compute\_torques函数}
 
-% \section[机械狗+飞行器机器人]{机械狗+飞行器机器人}
-% 该类型的机器人由类似于ANYmal\cite[p1]{Hwangbo_Lee_Dosovitskiy_Bellicoso_Tsounis_Koltun_Hutter_2019}类型机器人的四足机器人，在此基础之上添加两对旋翼使其具备飞行能力。
+\subsection[self.post\_physics\_step函数]{self.post\_physics\_step函数}
 
-% \textcolor{red}{\small
-% 待补充示意图片...
-% }
 
-% 该类型机器人的控制基础是ZMP约束和飞行器控制，它相对于现有双轮机器人，如Ascento\cite[p1]{Klemm_Morra_Salzmann_Tschopp_Bodie_Gulich_Kung_Mannhart_Pfister_Vierneisel_et_al_2019}等，新的控制问题难点是：
-% \begin{enumerate}
-%   \item 飞行器的矢量控制；
-%   \item 如何优化设计使得旋翼提供的升力可以满足飞行控制
-%   \item 续航安全问题；
-%   \item 如何让旋翼配合轮足实现更加灵巧、优雅、节能、稳定的动作；
-% \end{enumerate}
+
+
+
+
+
+
+
+
 

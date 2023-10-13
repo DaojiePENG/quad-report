@@ -1,6 +1,6 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter[强化学习部署实践和关键点]{强化学习部署实践和关键点}
+\chapter[强化学习仿真平台]{强化学习仿真平台}
 \begin{note}
   两个参考的RL深度学习案例库：
 
@@ -9,6 +9,10 @@
   \emph{\href{https://github.com/DaojiePENG}{legged\_gym库}}
 \end{note}
 
+\section[关于各种机器人仿真平台]{关于各种机器人仿真平台}
+目前比较流行的机器人仿真平台有MuJoCo\cite[p]{Todorov_Erez_Tassa_2012}、PyBullet[7]、DART\cite[p]{Lee_X_Grey_Ha_Kunz_Jain_Ye_S_Srinivasa_Stilman_Karen_Liu_2018}、Drake[9]、V-Rep\cite[p]{Rohmer_Singh_Freese_2013}等，这些物理引擎需要大量的CPU集群来解决具有挑战性的RL任务，它们的应用因此面临着瓶颈。例如，在这篇文献\cite[p]{OpenAI_Akkaya_Andrychowicz_Chociej_Litwin_McGrew_Petron_Paino_Plappert_Powell_et_al_2019}中，几乎$30,000$个CPU内核（$920$个工人机器，每个$32$个内核）用于训练机器人以使用RL解决Rubik的Cube任务。在类似的任务中，这篇文献\cite[p]{Andrychowicz_Baker_Chociej_Józefowicz_McGrew_Pachocki_Petron_Plappert_Powell_Ray_et_al_2020}使用了一组$384$个系统，具有$6144$个CPU内核，加上$8$个\emph{NVIDIA V100 GPU}，并且需要$30$小时的训练RL才能收敛。这其中的主要原因是CPU计算并行能力的限制以及在有GPU参与的情况下CPU-GPU之间通信速度的限制。GPU在图形计算和仿真方面有这很大的优势，因此我们希望能够将仿真和深度学习策略同时在GPU上运行，仅在CPU上定义实验流程和获取结果反馈。这在英伟达提供的\emph{Isaac Gym}平台得到了实现。
+
+
 \section[强化学习平台Isaac]{关于强化学习平台Isaac\cite[p4-10]{Makoviychuk_Wawrzyniak_Guo_Lu_Storey_Macklin_Hoeller_Rudin_Allshire_Handa_et_al_2021}}
 
 % \textcolor{red}{\small
@@ -16,8 +20,7 @@
 
 \emph{Isaac Gym}提供了一个高性能的学习平台，可以直接在GPU上训练各种机器人任务的策略。物理模拟和神经网络策略训练都在GPU上进行，并通过直接将物理缓冲区的数据以\emph{PyTorch张量}的形式进行通信，避免了与CPU配合带来的通信瓶颈。与使用基于CPU的模拟器结合GPU的神经网络的传统RL训练相比，在单个GPU上分解复杂机器人任务的快速训练时间能够提高$2-3$个数量级\cite[p1]{Makoviychuk_Wawrzyniak_Guo_Lu_Storey_Macklin_Hoeller_Rudin_Allshire_Handa_et_al_2021}。
 
-\subsection[关于各种机器人仿真平台]{关于各种机器人仿真平台}
-目前比较流行的机器人仿真平台有MuJoCo\cite[p]{Todorov_Erez_Tassa_2012}、PyBullet[7]、DART\cite[p]{Lee_X_Grey_Ha_Kunz_Jain_Ye_S_Srinivasa_Stilman_Karen_Liu_2018}、Drake[9]、V-Rep\cite[p]{Rohmer_Singh_Freese_2013}等，这些物理引擎需要大量的CPU集群来解决具有挑战性的RL任务，它们的应用因此面临着瓶颈。例如，在这篇文献\cite[p]{OpenAI_Akkaya_Andrychowicz_Chociej_Litwin_McGrew_Petron_Paino_Plappert_Powell_et_al_2019}中，几乎$30,000$个CPU内核（$920$个工人机器，每个$32$个内核）用于训练机器人以使用RL解决Rubik的Cube任务。在类似的任务中，这篇文献\cite[p]{Andrychowicz_Baker_Chociej_Józefowicz_McGrew_Pachocki_Petron_Plappert_Powell_Ray_et_al_2020}使用了一组$384$个系统，具有$6144$个CPU内核，加上$8$个\emph{NVIDIA V100 GPU}，并且需要$30$小时的训练RL才能收敛。这其中的主要原因是CPU计算并行能力的限制以及在有GPU参与的情况下CPU-GPU之间通信速度的限制。GPU在图形计算和仿真方面有这很大的优势，因此我们希望能够将仿真和深度学习策略同时在GPU上运行，仅在CPU上定义实验流程和获取结果反馈。这在英伟达提供的\emph{Isaac Gym}平台得到了实现。
+
 \subsection[关于Isaac Gym]{关于Isaac Gym}
 \emph{Isaac Gym}是一个\emph{端到端(end-to-end)}的高性能机器人仿真平台。它运行端到端的GPU加速训练管道，这使研究人员能够克服上述限制，并在连续控制任务中实现$2-3$个数量级的训练加速。\emph{Isaac Gym}利用\emph{NVIDIA PhysX}[13]来提供GPU加速的模拟后端，使其能够以仅使用高度并行性实现的速率收集机器人RL所需的经验数据。它提供了一个基于\emph{PyTorch张量}的API来在本地访问GPU上的物理模拟结果。观察张量可以用作策略网络的输入，得到的动作结果张量可以直接反馈到物理系统中。
 
@@ -107,7 +110,6 @@
 \end{note}
 
 \section[物理模拟器]{物理模拟器}
-机器人模拟使用减少坐标关节的物理引擎\href{https://developer.nvidia.com/physx-sdk}{PhysX}。任何单个刚体都可以用最大坐标刚体或单连杆简化坐标关节来模拟。具有单连杆的关节和刚体的是等效的和可互换的。表\ref{tb:simulator_tune_parameters}描述了向用户公开的用于调优模拟器的各种参数。
 
 \begin{table}
   \centering
@@ -144,20 +146,7 @@
   \end{threeparttable}
 \end{table}
 
-
-
-
-
-
-
-
-
-
-
-\section[强化学习案例legged\_gym库]{强化学习案例legged\_gym库\cite[p1]{Rudin_Hoeller_Reist_Hutter_2021}}
-
-\textcolor{red}{\small
-这部分展示legge\_gym库关于ANYmal-c的训练代码，主要关注整个训练流程、奖励函数的设计、对Isaac-API的使用、地形设计、训练课程设计等与论文中提到的概念对应...}
+机器人模拟使用减少坐标关节的物理引擎\href{https://developer.nvidia.com/physx-sdk}{PhysX}。任何单个刚体都可以用最大坐标刚体或单连杆简化坐标关节来模拟。具有单连杆的关节和刚体的是等效的和可互换的。表\ref{tb:simulator_tune_parameters}描述了向用户公开的用于调优模拟器的各种参数。
 
 
 
@@ -170,7 +159,9 @@
 
 
 
-\section[PyTorch的使用]{PyTorch的使用}
-\textcolor{red}{\small
-这部分结合Pytorch的官方文档和legge\_gym库提取其中关于\emph{.pth}模型的构建和使用流程和实例...
-}
+
+
+% \section[PyTorch的使用]{PyTorch的使用}
+% \textcolor{red}{\small
+% 这部分结合Pytorch的官方文档和legge\_gym库提取其中关于\emph{.pth}模型的构建和使用流程和实例...
+% }

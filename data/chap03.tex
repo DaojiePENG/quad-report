@@ -68,8 +68,9 @@ NMPC方法不断迭代求解\emph{有限水平的优化控制问题(finite-horiz
 
 其中$\mathbfit{u}_n^{ff}$是前馈控制动作，$\mathbfit{K}_n$是一个线性反馈控制器用来调节状态$\mathbfit{x}_n$和参考位置$\mathbfit{u}_n^{rcf}$之间的偏差。在这篇文章\cite[p3]{Neunert_Stauble_Giftthaler_Bellicoso_Carius_Gehring_Hutter_Buchli_2018}的大多数实验中，我们使用了iLQR算法。我们进一步将其与更有效的高斯-牛顿多次射击(GNMS)方法进行比较，后者可以作为直接替代。两种算法都使用相同的方法来表述和解决局部LQOC问题，但是它们的MPC公式有所不同。
 
+\subsection[iLQR-NMPC算法]{iLQR-NMPC算法}
+
 \begin{algorithm}
-    
     \caption[short]{Discrete-time iLQR-MPC Algorithm}
     \label{algorithm:iLQR_MPC}
     \textbf{Given}\\
@@ -90,8 +91,9 @@ NMPC方法不断迭代求解\emph{有限水平的优化控制问题(finite-horiz
 在算法\ref{algorithm:iLQR_MPC}中对iLQR-NMPC算法进行了总结。算法过程中有两个前向积分步骤。一次是在检索状态测量后直接得到标称轨迹，另一次是在更新控制器后进行直线搜索。对于我们的应用，后者对于获得反馈控制器跟踪的新参考轨迹非常重要。
 
 
+\subsection[GNMS-NMPC算法]{GNMS-NMPC算法}
+
 \begin{algorithm}
-    
     \caption[short]{Discrete-time GNMS-NMPC Algorithm}
     \label{algorithm:GNMS_NMPC}
     \textbf{Given}\\
