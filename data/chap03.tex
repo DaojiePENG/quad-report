@@ -1,12 +1,116 @@
 % !TeX root = ../sustechthesis-example.tex
 
 \chapter[基于MPC的控制]{基于MPC的控制}
-\section[基于MPC的控制]{基于MPC的控制\cite[p2-4]{Neunert_Stauble_Giftthaler_Bellicoso_Carius_Gehring_Hutter_Buchli_2018}}
 
-\textcolor{red}{\small
-对于MPC还不太熟悉，等看完了补充下MPC描述...
-}
+% \textcolor{red}{\small
+% 对于MPC还不太熟悉，等看完了补充下MPC描述...
+% }
 
-\textcolor{red}{\small
-基于参考文献阐述基于MPC的控制方法...
-}
+% \textcolor{red}{\small
+% 基于参考文献阐述基于MPC的控制方法...
+% }
+在这部分我将介绍机械狗基于MPC的控制。
+
+\section[刚体系统的MPC问题描述]{刚体系统的MPC问题描述\cite[p2-4]{Neunert_Stauble_Giftthaler_Bellicoso_Carius_Gehring_Hutter_Buchli_2018}}
+
+特别地，这里介绍NMPC。
+NMPC方法不断迭代求解\emph{有限水平的优化控制问题(finite-horizon Optimal Control Problem)}，成本函数和非线性动力学系统分别具有如下形式：
+\begin{align}
+    J(\mathbfit{x}(t), \mathbfit{u}(t))=h(\mathbfit{x}(t_f))+\int_{t=0}^{t_f}L(\mathbfit{x}(t), \mathbfit{u}(t),t)dt \label{function:cost_function}\\
+    \mathbfit{\dot x}(t)=f(\mathbfit{x}(t), \mathbfit{u}(t),t), \quad \mathbfit{x}(0)= \mathbfit{x}_0\label{function:system_dynamics}
+\end{align}
+
+其中的状态和控制轨迹是$\mathbfit{x}(t)$和$\mathbfit{u}(t)$。
+
+\subsection[系统模型]{系统模型}
+
+刚体动力学模型如下：
+\begin{align}
+    \mathbfit{M}(\mathbfit{q})\mathbfit{\ddot q}+\mathbfit{C}(\mathbfit{q},\mathbfit{\dot q})+\mathbfit{G}(\mathbfit{q})=\mathbfit{J}_c^T\mathbfit{\lambda}(\mathbfit{q},\mathbfit{\dot q})+\mathbfit{S}^T\mathbfit{\tau}
+\end{align}
+
+其中$\mathbfit{M}_{18 \times 18}$是惯性矩阵，$\mathbfit{C}_{18 \times 1}$是科里奥利力和向心力，$\mathbfit{G}_{18 \times 1}$是重力项。另外这里设定系统是由关节点的力（力矩）$\mathbfit{\tau}_{12\times 1}$驱动的，$\mathbfit{S}_{18\times 12}$将这些力映射到驱动自由度上。此外，外力$\mathbfit{\lambda}$通过雅克比矩阵$(\mathbfit{J}_c)_{18\times 12}$的转换作用到系统上。节点的位置（角度）和速度分别定义为$\mathbfit{q}$和$\mathbfit{\dot q}$。考虑到浮动基体的因素，浮动基体的位置和姿态信息也包含在其中。浮动基体的相关信息可以认为是一个在惯性系和基体系之间的无驱动的$6$自由度系统。3D的转动采用欧拉角参数形式。
+
+整个系统的状态定义如如下：
+\begin{align}
+    \mathbf{x}=\begin{bmatrix} _W\mathbfit{q}^T & _L\mathbfit{\dot q}^T\end{bmatrix}^T
+    =\begin{bmatrix} {_W \mathbfit{q}_B^T} _W\mathbfit{x}_B^T\mathbfit{q}_J^T & {_L\mathbfit{\dot \omega}_B^T} {_L\mathbfit{\dot x}_B^T} \mathbfit{\dot q}_J^T\end{bmatrix}^T
+\end{align}
+
+其中姿态是在“世界”系$W$下表达的，转动是在本地坐标系$B$下表达的。由于参考系的不同，转动不是姿势的纯时间导数，而是需要额外的坐标变换$\mathbfit{T}_{WL}$，该坐标变换由线速度的纯旋转矩阵以及角速度的稍微复杂的映射矩阵组成。这导致了整个系统的动力学如下：
+\begin{align}
+    \mathbfit{\dot x}(t)=\begin{bmatrix} _W\mathbfit{q}^T & _L\mathbfit{\dot q}^T\end{bmatrix}^T\\
+    =\begin{bmatrix}\mathbfit{T}_{WL} & _L\mathbfit{\ddot q}^T\\ \mathbfit{M}^{-1}(\mathbfit{q})(\mathbfit{S}^T\mathbfit{\tau}+\mathbfit{J}_c^T\mathbfit{\lambda}(\mathbfit{q},\mathbfit{\dot q})-\mathbfit{C}(\mathbfit{q},\mathbfit{\dot q})-\mathbfit{G}(\mathbfit{q}))\end{bmatrix}
+\end{align}
+
+\subsection[接触模型]{接触模型}
+
+我们使用显式接触模型将接触物理添加到动态模型中。因此，接触力成为机器人状态的显式函数：$$\mathbfit{\lambda}(\mathbfit{q},\mathbfit{\dot q})=\mathbfit{g}(\mathbfit{x}(t))$$
+
+我们的接触模型由垂直和平行于接触面的线性弹簧和阻尼器组成。对于每个末端执行器，我们在专用接触坐标系C中计算接触模型如下：
+\begin{align}
+    _C\mathbfit{\lambda}(\mathbfit{q},\mathbfit{\dot q})=-k\exp(\alpha_k\ {_C\mathbfit{p}_z(\mathbfit{q})})-d sig(\alpha_d\ {_C\mathbfit{p}_z(\mathbfit{q})})\ {_C\mathbfit{\dot p}_z(\mathbfit{q},\mathbfit{\dot q})}
+\end{align}
+
+其中$d, k$分别是阻尼器和弹簧的参数。为了获得光滑导数，我们将阻尼项与接触面穿透$\mathbfit{p}(\mathbfit{q})$的法向分量$\mathbfit{p}_z(\mathbfit{q})$的s型函数相乘。指数函数和s型函数都可以作为平滑单元，它们的“锐度”由$\alpha_k$和$\alpha_d$控制。最后，将接触力转化到机器人体系中：
+\begin{align}
+    _B\mathbfit{\lambda}(\mathbfit{q},\mathbfit{\dot q})=\mathbfit{R}_{WB}(\mathbfit{q})_C\mathbfit{\lambda(\mathbfit{q},\mathbfit{\dot q})}
+\end{align}
+
+得到的结果随后就传递到正向动力学，在那里它们作用于相应的连杆上。我们对接触模型平滑的特殊选择通过确保接触力永远不会完全消失来支持基于梯度的求解器。因此，求解器甚至可以在接触建立之前对其进行推理。虽然这有点非物理性质，但我们稍后会看到，这并不妨碍硬件上的良好性能。我们强调存在物理上更精确的显式接触模型\cite[p]{Azad_Featherstone_2014}和隐式接触模型，它们在物理引擎中很流行。然而，后者依赖于基于优化的求解器，无法很好地区分。相比之下，我们的简化模型足够准确地捕捉控制效果，并允许通过使用Auto-Diff有效地计算导数，这是快速解决NMPC问题的关键\cite[p]{Giftthaler_Neunert_Stäuble_Frigerio_Semini_Buchli_2017}。
+
+\section[NMPC方法]{NMPC方法}
+
+非正式地说，NMPC是通过以足够高的速率解决\emph{非线性最优控制(Nonlinear Optimal Control, NLOC)}问题来实现的。常用的非线性最优控制方法有\emph{单次射击(Single Shooting)}、\emph{多次射击(Multiple Shooting)}或\emph{直接配置(Direct Collection)}\cite[p]{Diehl_Bock_Diedam_Wieber_2005}，它们将连续时间最优控制问题离散化，并将其转化为\emph{非线性程序(Nonlinear Program, NLP)}。这些NLP通常使用\cite[p]{Posa_Kuindersma_Tedrake_2016, Pardo_Moller_Neunert_Winkler_Buchli_2016}中提出的通用的现成NLP求解器来求解。然而，这种方法并没有充分利用最优控制问题固有的稀疏性结构，并且经常导致较差的算法运行时间，这对于MPC应用来说不够快。为了克服这一问题，我们将问题表述为无约束最优控制问题，并采用优化的自定义求解器，该求解器实现了一系列\emph{迭代高斯-牛顿NLOC算法(iterative Gauss-Newton NLOC algorithms)}\cite[p]{Giftthaler_Neunert_Stäuble_Buchli_Diehl_2017}。求解器采用一阶方法，将NLOC问题局部逼近为\emph{线性二次最优控制(Linear Quadratic Optimal Control, LQOC)}问题，采用\emph{高斯-牛顿-黑森近似(Gauss-Newton Hessian approximation)}。LQOC采用\emph{基于Riccati(Riccati-based)}的求解器求解，该求解器在时间范围上具有线性复杂度。这使得该方法在更大的时间范围内有效。我们的求解器可以被认为是众所周知的iLQR\cite[p]{Todorov_Weiwei_Li_2005}和SLQ\cite[p]{Sideris_Bobrow_2005}算法的推广，并且涵盖了单次和多次射击。设计了这种形式的时变状态反馈控制器：
+\begin{align}
+    \mathbfit{u}_n(\mathbfit{x})=\mathbfit{u}_n^{ff}+\mathbfit{K}_n(\mathbfit{x}_n-\mathbfit{u}_n^{rcf})\label{function:time_vary_feedback_controller}
+\end{align}
+
+其中$\mathbfit{u}_n^{ff}$是前馈控制动作，$\mathbfit{K}_n$是一个线性反馈控制器用来调节状态$\mathbfit{x}_n$和参考位置$\mathbfit{u}_n^{rcf}$之间的偏差。在这篇文章\cite[p3]{Neunert_Stauble_Giftthaler_Bellicoso_Carius_Gehring_Hutter_Buchli_2018}的大多数实验中，我们使用了iLQR算法。我们进一步将其与更有效的高斯-牛顿多次射击(GNMS)方法进行比较，后者可以作为直接替代。两种算法都使用相同的方法来表述和解决局部LQOC问题，但是它们的MPC公式有所不同。
+
+\begin{algorithm}
+    
+    \caption[short]{Discrete-time iLQR-MPC Algorithm}
+    \label{algorithm:iLQR_MPC}
+    \textbf{Given}\\
+    - cost function \eqref{function:cost_function} and system dynamics \eqref{function:system_dynamics}.\\
+    - receding MPC time horizon N.\\
+    - stable initial control policy $\mathbfit{u}_n(\mathbfit{x})$ of form \eqref{function:time_vary_feedback_controller}\\
+    \textbf{Repeat Online:}\\
+    - get state measurement $\mathbfit{x}_{meas}$.\\
+    - forward integrate system dynamics \eqref{function:system_dynamics} with $\mathbfit{x}_0=\mathbfit{x}_{meas}$ to obtain state trajectories $\mathbfit{X}=\{\mathbfit{x}_0, \mathbfit{x}_1, \dots, \mathbfit{x}_N\}$, control trajectories $\mathbfit{U}=\{\mathbfit{u}_0, \mathbfit{u}_1, \dots, \mathbfit{u}_N\}$ and corresponding sensitivities $\mathbfit{A}_n, \mathbfit{B}_n$.\\\eqref{function:cost_function}
+    - quadratize cost function around $\mathbfit{X}$ and $\mathbfit{U}$\\
+    - solve LQOC problem using a Riccati backward sweep\\
+    - retrieve control policy $\mathbfit{u}_n^+(\mathbfit{x})$ of form \eqref{function:time_vary_feedback_controller}\\
+    - \textbf{line search} over the control increment $(\mathbfit{u}_n^(\mathbfit{x})^+-\mathbfit{u}_n^(\mathbfit{x}))$ and update $\mathbfit{X}^+$ by means of a forward simulation of the Nonlinear dynamics \eqref{function:system_dynamics} with $\mathbfit{x}_0=\mathbfit{x}_{meas}$\\
+    - send policy $\mathbfit{u}_n^+(\mathbfit{x})$ and $\mathbfit{X}^+$ to the robot tracking controller\\
+    - update $\mathbfit{u}_n(\mathbfit{x})\leftarrow\mathbfit{u}_n^+(\mathbfit{x})$
+\end{algorithm}
+
+在算法\ref{algorithm:iLQR_MPC}中对iLQR-NMPC算法进行了总结。算法过程中有两个前向积分步骤。一次是在检索状态测量后直接得到标称轨迹，另一次是在更新控制器后进行直线搜索。对于我们的应用，后者对于获得反馈控制器跟踪的新参考轨迹非常重要。
+
+
+\begin{algorithm}
+    
+    \caption[short]{Discrete-time GNMS-NMPC Algorithm}
+    \label{algorithm:GNMS_NMPC}
+    \textbf{Given}\\
+    - cost function \eqref{function:cost_function} and system dynamics \eqref{function:system_dynamics}.\\
+    - receding MPC time horizon N.\\
+    - initial state and control trajectories $\mathbfit{X}=\{\mathbfit{x}_0, \mathbfit{x}_1, \dots, \mathbfit{x}_N\}$, $\mathbfit{U}=\{\mathbfit{u}_0, \mathbfit{u}_1, \dots, \mathbfit{u}_N\}$\\
+    \textbf{Repeat Online:}\\
+    \textit{Feedback phase}\\
+    - get state measurement $\mathbfit{x}_{meas}$.\\
+    - forward integrate system dynamics \eqref{function:system_dynamics} with $\mathbfit{x}_0=\mathbfit{x}_{meas}$ on the first multiple-shooting interval, obtain sensitivities $\mathbfit{A}_0$, $\mathbfit{B}_0$.
+    - quadratize cost function \eqref{function:cost_function} around $\mathbfit{X}$ and $\mathbfit{U}$ for first control stage\\
+    - solve LQOC problem using a Riccati backward sweep\\
+    - retrieve updated control policy $\mathbfit{u}_n^+(\mathbfit{x})$ and updated trajectories $\mathbfit{U}^+$, $\mathbfit{X}^+$.\\
+    - send policy $\mathbfit{u}_n^+(\mathbfit{x})$ and $\mathbfit{X}^+$ to the root tracking controller\\
+    \textit{Preparation phase}\\
+    update: $\mathbfit{u}_n(\mathbfit{x})\leftarrow\mathbfit{u}_n^+(\mathbfit{x})$, $\mathbfit{X}\leftarrow\mathbfit{X}^+$, $\mathbfit{U}\leftarrow\mathbfit{U}^+$\\
+    forward integrate system dynamics \eqref{function:system_dynamics} for the multiple-shooting internals $1$ to $N$, obtain sensitivities $\mathbfit{A}_1, \dots, \mathbfit{A}_{N-1}, \mathbfit{B}_1, \dots, \mathbfit{B}_{N-1}$.\\
+    - quadratize cost function \eqref{function:cost_function} around $\mathbfit{X}$, $\mathbfit{U}$ for multiple-shooting intervals $1$ to $N$. 
+\end{algorithm}
+
+相比之下，算法\ref{algorithm:GNMS_NMPC}中总结的GNMS-NMPC算法在新控制策略的同时设计了状态参考轨迹。此外，它允许将算法分为\emph{反馈阶段(feedback phase)}和\emph{准备阶段(preparation phase)}[29]，这有助于最小化状态测量和控制策略更新之间的延迟。关于GNMS算法的详细概述，请参考\cite[p]{Giftthaler_Neunert_Stäuble_Buchli_Diehl_2017}。一个开源参考实现可在\href{https://adrlab.bitbucket.io/ct}{这个链接}中找到。
+
