@@ -1,6 +1,6 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter{基于强化学习的机械狗控制}
+\chapter[基于强化学习的机械狗控制]{\label{section:rl_based_control}基于强化学习的机械狗控制}
 在这部分我将阐述关于如何使用强化学习来进行运动控制的内容。相比于传统的基于模型的控制方法，该方法通过在模拟环境中训练控制策略，可以更好地适应复杂的非线性系统动力学和环境不确定性，并且能够实时响应用户命令和环境变化。在这里我们主要关注如何使用强化学习来训练机械狗类型的足式和轮式机器人控制器。
 
 \section[强化学习控制]{强化学习控制}
@@ -131,7 +131,7 @@ $F(\phi)$的定义如下：
 
 跟随控制是使用解析\emph{逆运动学(inverse kinematics, IK)}和关节点\emph{位置控制(position control)}实现的。在$H_i$中定义的脚位置首先表述在机器人身体系中，然后用IK计算关节点的位置目标。而关节点的位置目标依靠关节点的PD控制器来跟随。使用IK的好处是可以最大化计算效率同时在\emph{仿真到实际(sim-to-real)}的过程中可以复用已有的位置控制驱动器模型\cite[p]{Lee_Hwangbo_Hutter_2019,Hwangbo_Bellicoso_Fankhauser_Huttery_2016}。
 
-\section[双层网络本体和外部感知融合方式]{双层网络本体和外部感知融合方式\cite[p7]{Miki_Lee_Hwangbo_Wellhausen_Koltun_Hutter_2022}}
+\section[双层网络本体和外部感知融合方式]{\label{section:rl_robust_in_wild}双层网络本体和外部感知融合方式\cite[p7]{Miki_Lee_Hwangbo_Wellhausen_Koltun_Hutter_2022}}
 
 
 \begin{figure}

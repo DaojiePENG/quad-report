@@ -89,7 +89,7 @@
 
 \section[分层次优化(Hierarchical Optimization)计算]{\label{section:hierarchical_opt}分层次优化(Hierarchical Optimization)计算\cite[p2]{Bellicoso_Jenelten_Fankhauser_Gehring_Hwangbo_Hutter_2017}}
 
-整个优化计算过程的最终目的是得到一个扭矩参考目标${\mathbfit \xi}_d$用来作为输入控制电机，${\mathbfit \xi}_d$包含两部分信息：关节点的运动加速度$\mathbfit{\dot u}_d^T$和接触力$\mathbfit{\lambda}_d^T$。控制方法采用接触力控制，优化化计算的策略是采取分层次优化的方式。在这一部分我们将从\ref{section:motion_model}节中描述的运动模型出发，拆接触其中的内容进行分层次优化。我们将介绍运动方程、接触部分的运动约束、接触力和扭矩限制、运动跟随、接触力最小化、根据优化结果计算电机扭矩等内容。
+整个优化计算过程的最终目的是得到一个扭矩参考目标${\mathbfit \xi}_d$用来作为输入控制电机，${\mathbfit \xi}_d$包含两部分信息：关节点的运动加速度$\mathbfit{\dot u}_d^T$和接触力$\mathbfit{\lambda}_d^T$。控制方法采用接触力控制，优化化计算的策略是采取分层次优化的方式。在这一部分我们将从第\ref{section:motion_model}节中描述的运动模型出发，拆接触其中的内容进行分层次优化。我们将介绍运动方程、接触部分的运动约束、接触力和扭矩限制、运动跟随、接触力最小化、根据优化结果计算电机扭矩等内容。
 
 \subsection[基体运动方程]{基体运动方程}
 通过利用选择矩阵$\mathbfit{S}^T$诱导的分解，我们可以将运动和接触力限制在浮动基系统动力学描述的流形上，有如下式：
@@ -211,9 +211,9 @@ $${\mathbfit \tau}_d = \begin{bmatrix} {\mathbfit M}_j & -{\mathbfit J}^T_{s_j}\
 
 
 \section[质心运动优化(Motion Optimization)]{质心运动优化(Motion Optimization)\cite[p3]{Bellicoso_Jenelten_Fankhauser_Gehring_Hwangbo_Hutter_2017}}
-在机械狗的运动模型描述\ref{section:motion_model}节部分我们定义了一些关键参数，拥有了对机械狗运动的描述；在分层次优化\ref{section:hierarchical_opt}节部分我们分解了运动方程的成分并给出了一些硬性约束条件和底层控制方法，知道了如何从关节点的运动加速度$\mathbfit{\dot u}_d^T$的目标值和接触力$\mathbfit{\lambda}_d^T$的目标值这两个变量得到对电机的扭矩$\mathbfit{\tau}_d$的控制目标值。下面就要进行实际的运动优化问题描述和求解，来计算出关节点的运动加速度$\mathbfit{\dot u}_d^T$的目标值和接触力$\mathbfit{\lambda}_d^T$的目标值。
+在机械狗的运动模型描述第\ref{section:motion_model}节部分我们定义了一些关键参数，拥有了对机械狗运动的描述；在分层次优化第\ref{section:hierarchical_opt}节部分我们分解了运动方程的成分并给出了一些硬性约束条件和底层控制方法，知道了如何从关节点的运动加速度$\mathbfit{\dot u}_d^T$的目标值和接触力$\mathbfit{\lambda}_d^T$的目标值这两个变量得到对电机的扭矩$\mathbfit{\tau}_d$的控制目标值。下面就要进行实际的运动优化问题描述和求解，来计算出关节点的运动加速度$\mathbfit{\dot u}_d^T$的目标值和接触力$\mathbfit{\lambda}_d^T$的目标值。
 
-整个机器人的控制遵循一下流程：首先由预定义的方式设定机器人应该遵循的步态\ref{section:foot_hold}节；为了保持机器人的稳定性，这些步态的生成需要满足ZMP约束，也即机械狗的步态是由一些列的支撑多边形序列具体定义的\ref{section:support_polygon}节；在机器人获得稳定支撑的基础上，我们根据外部的指令对机器人的具体运动方式调整以获得指令要求的目标运动，这被描述为一个运动优化问题\ref{section:motion_opt_problem}；在优化前首先要对初始状态进行规划初始化\ref{section:optimization_init}节；优化过程采用质心运动优化的方式进行，这是一个二次优化问题，它的具体建立在\ref{section:com_opt_setup}节给出。
+整个机器人的控制遵循一下流程：首先由预定义的方式设定机器人应该遵循的步态第\ref{section:foot_hold}节；为了保持机器人的稳定性，这些步态的生成需要满足ZMP约束，也即机械狗的步态是由一些列的支撑多边形序列具体定义的第\ref{section:support_polygon}节；在机器人获得稳定支撑的基础上，我们根据外部的指令对机器人的具体运动方式调整以获得指令要求的目标运动，这被描述为一个运动优化问题第\ref{section:motion_opt_problem}；在优化前首先要对初始状态进行规划初始化第\ref{section:optimization_init}节；优化过程采用质心运动优化的方式进行，这是一个二次优化问题，它的具体建立在第\ref{section:com_opt_setup}节给出。
 
 \subsection[足态保持生成]{\label{section:foot_hold}足态保持生成}
 外部高级速度命令用于通过调整参考立足点以特定方向和速度驱动运动，这些立足点是针对每个新控制回路的每条腿计算的。根据腿的接触状态，这些是通过两种不同的方式计算的：当腿接触时，命令速度将被投影到计算的立足点位置，以便平均躯干速度与所需的运动速度相匹配；当腿摆动时，参考立足点以相同的方式计算，但添加了一个速度反馈项，该项用来在机器人受到会导致速度控制误差的外部推力时稳定机器人。相关细节参考文献\cite{Gehring_Coros_Hutter_Bellicoso_Heijnen_Diethelm_Bloesch_Fankhauser_Hwangbo_Hoepflinger_et_al_2016}。
@@ -305,7 +305,7 @@ ${\mathbfit \alpha} = \begin{bmatrix}{\mathbfit \alpha}_0^T & ...& {\mathbfit \a
 
 
 \section[质心运动优化QP问题的建立]{\label{section:com_opt_setup}质心运动优化QP问题建立}
-如\ref{section:motion_opt_problem}节所述，质心运动优化问题是可以转化成一个多维二次优化问题，本节将具体描述这问题的建立。一个二次优化问题主要由三个部分的定义：\emph{成本函数}、\emph{等式约束}、\emph{不等式约束}。另外，如果约束太紧可能求解不出结果，因此要进行一定的\emph{约束松弛}
+如第\ref{section:motion_opt_problem}节所述，质心运动优化问题是可以转化成一个多维二次优化问题，本节将具体描述这问题的建立。一个二次优化问题主要由三个部分的定义：\emph{成本函数}、\emph{等式约束}、\emph{不等式约束}。另外，如果约束太紧可能求解不出结果，因此要进行一定的\emph{约束松弛}
 
 \subsection[成本函数]{\label{section:cost_function}成本函数}
 
@@ -386,12 +386,12 @@ ${\mathbfit \alpha} = \begin{bmatrix}{\mathbfit \alpha}_0^T & ...& {\mathbfit \a
 运动计划的持续更新可能会导致躯干相对于参考立足点的运动漂移。这可能是由于控制误差的累积造成的，这改变了解决方案，使运动变得不可行。为了避免这个问题，我们添加一个与\emph{参考正则化器路径}的偏差比较的成本。这个正则化的路径可以近似表示成曲线段$\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$，这个路径正则化器的样条系数是从最小化问题设置中获得的，使得：
 \begin{itemize}
     \item $\mathbfit{\pi}(t)$的初始位置与初始化时支撑多边形的中心位置重合，$\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$与初始速度和加速度重合；
-    \item $\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$的结束状态由\ref{section:soft_final_constrants}节中定义。
+    \item $\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$的结束状态由第\ref{section:soft_final_constrants}节中定义。
     \item 加速度最小化
     \item 通过在样条结点上的状态设置等式约束来平滑地连接样条线
 \end{itemize}
 
-通过对\ref{section:deviation_previous}节中所做的整个运动进行采样，我们惩罚从路径正则化器产生的运动的偏差。
+通过对第\ref{section:deviation_previous}节中所做的整个运动进行采样，我们惩罚从路径正则化器产生的运动的偏差。
 
 % \begin{itemize}
 %     \item \textbf{加速度最小化：}{如文献\cite[p]{Kalakrishnan_Buchli_Pastor_Mistry_Schaal_2010}所示，我们可以通过写作来最小化加速度：
@@ -446,12 +446,12 @@ ${\mathbfit \alpha} = \begin{bmatrix}{\mathbfit \alpha}_0^T & ...& {\mathbfit \a
 %     运动计划的持续更新可能会导致躯干相对于参考立足点的运动漂移。这可能是由于控制误差的累积造成的，这改变了解决方案，使运动变得不可行。为了避免这个问题，我们添加一个与\emph{参考正则化器路径}的偏差比较的成本。这个正则化的路径可以近似表示成曲线段$\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$，这个路径正则化器的样条系数是从最小化问题设置中获得的，使得：
 %     \begin{itemize}
 %         \item $\mathbfit{\pi}(t)$的初始位置与初始化时支撑多边形的中心位置重合，$\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$与初始速度和加速度重合；
-%         \item $\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$的结束状态由\ref{section:soft_final_constrants}节中定义。
+%         \item $\mathbfit{\pi}(t),\mathbfit{\dot \pi}(t), \mathbfit{\ddot \pi}(t)$的结束状态由第\ref{section:soft_final_constrants}节中定义。
 %         \item 加速度最小化
 %         \item 通过在样条结点上的状态设置等式约束来平滑地连接样条线
 %     \end{itemize}
     
-%     通过对\ref{section:deviation_previous}节中所做的整个运动进行采样，我们惩罚从路径正则化器产生的运动的偏差。}
+%     通过对第\ref{section:deviation_previous}节中所做的整个运动进行采样，我们惩罚从路径正则化器产生的运动的偏差。}
 % \end{itemize}
 
 根据实际策略的不同，成本函数可能会对一些项目进行调整，还可能会包含一些其它的项目，如文献中表述\cite[p4]{Bellicoso_Jenelten_Gehring_Hutter_2018}。
@@ -521,7 +521,7 @@ ${\mathbfit \alpha} = \begin{bmatrix}{\mathbfit \alpha}_0^T & ...& {\mathbfit \a
 
 其中，$a,b,c$是经过支撑多边形各个边的直线方程的系数。这条针线的法向量是$\mathbfit{n}=[a,b]^T$，其方向定义为指向约束多边形内部。
 
-如\ref{section:cost_function}节所述，我们对运动的最终位置$\mathbfit{p}_f$施加了额外的不等式约束。这是通过在$\mathbfit{p}_f$上添加如公式\eqref{function:zmp}形式的四个约束来获得的。
+如第\ref{section:cost_function}节所述，我们对运动的最终位置$\mathbfit{p}_f$施加了额外的不等式约束。这是通过在$\mathbfit{p}_f$上添加如公式\eqref{function:zmp}形式的四个约束来获得的。
 
 
 \subsection[约束松弛]{约束松弛}

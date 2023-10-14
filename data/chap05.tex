@@ -1,6 +1,6 @@
 % !TeX root = ../sustechthesis-example.tex
 
-\chapter[强化学习仿真平台]{强化学习仿真平台}
+\chapter[强化学习仿真平台]{\label{section:rl_simulate_plateform}强化学习仿真平台}
 \begin{note}
   两个参考的RL深度学习案例库：
 
@@ -13,7 +13,7 @@
 目前比较流行的机器人仿真平台有MuJoCo\cite[p]{Todorov_Erez_Tassa_2012}、PyBullet[7]、DART\cite[p]{Lee_X_Grey_Ha_Kunz_Jain_Ye_S_Srinivasa_Stilman_Karen_Liu_2018}、Drake[9]、V-Rep\cite[p]{Rohmer_Singh_Freese_2013}等，这些物理引擎需要大量的CPU集群来解决具有挑战性的RL任务，它们的应用因此面临着瓶颈。例如，在这篇文献\cite[p]{OpenAI_Akkaya_Andrychowicz_Chociej_Litwin_McGrew_Petron_Paino_Plappert_Powell_et_al_2019}中，几乎$30,000$个CPU内核（$920$个工人机器，每个$32$个内核）用于训练机器人以使用RL解决Rubik的Cube任务。在类似的任务中，这篇文献\cite[p]{Andrychowicz_Baker_Chociej_Józefowicz_McGrew_Pachocki_Petron_Plappert_Powell_Ray_et_al_2020}使用了一组$384$个系统，具有$6144$个CPU内核，加上$8$个\emph{NVIDIA V100 GPU}，并且需要$30$小时的训练RL才能收敛。这其中的主要原因是CPU计算并行能力的限制以及在有GPU参与的情况下CPU-GPU之间通信速度的限制。GPU在图形计算和仿真方面有这很大的优势，因此我们希望能够将仿真和深度学习策略同时在GPU上运行，仅在CPU上定义实验流程和获取结果反馈。这在英伟达提供的\emph{Isaac Gym}平台得到了实现。
 
 
-\section[强化学习平台Isaac]{关于强化学习平台Isaac\cite[p4-10]{Makoviychuk_Wawrzyniak_Guo_Lu_Storey_Macklin_Hoeller_Rudin_Allshire_Handa_et_al_2021}}
+\section[强化学习平台Isaac]{\label{section:isaac_gym}关于强化学习平台Isaac\cite[p4-10]{Makoviychuk_Wawrzyniak_Guo_Lu_Storey_Macklin_Hoeller_Rudin_Allshire_Handa_et_al_2021}}
 
 % \textcolor{red}{\small
 % 这部分参考文献介绍对Isaac平台的基本理解，主要是它的并行工作流程和提供的读取和设置API...}
